@@ -131,7 +131,7 @@ def get_all_pdf_paths(folder_path: str) -> [str]:
     for path, _, files in os.walk(folder_path):
         for name in files:
             if name.endswith(".pdf"):
-                pdf_paths.append(os.path.join(path, name))
+                pdf_paths.append(os.path.join(path, name).replace('\\', '/'))
 
     return pdf_paths
 

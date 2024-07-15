@@ -15,8 +15,12 @@ from PyQt5.QtCore import Qt
 import extractor
 
 TITLE = "FDS Extractor"
+SELECT_FOLDER = "Sélectionner un dossier"
+NO_FOLDER_SELECTED = "Aucun dossier sélectionné"
 SELECT_FOLDER_INPUT = "Dossier sélectionné:\n"
-
+SELECT_FOLDER_CONTAINING_FDS = "Sélectionner un dossier contenant les fiches FDS"
+RUN_EXECUTION = "Lancer l'exécution"
+EXECUTION_WITH_FOLDER = "Exécution lancée avec le dossier"
 
 class App(QWidget):
     def __init__(self):
@@ -32,7 +36,7 @@ class App(QWidget):
         mainLayout = QVBoxLayout()
 
         # Label pour afficher le dossier sélectionné
-        self.label = QLabel("Aucun dossier sélectionné", self)
+        self.label = QLabel(NO_FOLDER_SELECTED, self)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setFont(QFont("Arial", 14))
         mainLayout.addWidget(self.label)
@@ -42,14 +46,14 @@ class App(QWidget):
 
         # Bouton pour sélectionner un dossier
         self.folderButton = QPushButton(
-            "Sélectionner un dossier contenant les fiches FDS", self
+            SELECT_FOLDER_CONTAINING_FDS, self
         )
         self.folderButton.setFont(QFont("Arial", 12))
         self.folderButton.clicked.connect(self.selectFolder)
         buttonLayout.addWidget(self.folderButton)
 
         # Bouton pour lancer l'exécution
-        self.executeButton = QPushButton("Lancer l'exécution", self)
+        self.executeButton = QPushButton(RUN_EXECUTION, self)
         self.executeButton.setFont(QFont("Arial", 12))
         self.executeButton.setEnabled(False)  # Désactiver le bouton au début
         self.executeButton.clicked.connect(self.execute)
@@ -94,7 +98,7 @@ class App(QWidget):
         options = QFileDialog.Options()
         options |= QFileDialog.ShowDirsOnly
         folder = QFileDialog.getExistingDirectory(
-            self, "Sélectionner un dossier", options=options
+            self, SELECT_FOLDER, options=options
         )
         if folder:
             self.label.setText(f"{SELECT_FOLDER_INPUT}{folder}")
@@ -102,18 +106,18 @@ class App(QWidget):
                 True
             )  # Activer le bouton si un dossier est sélectionné
         else:
-            self.label.setText("Aucun dossier sélectionné")
+            self.label.setText(NO_FOLDER_SELECTED)
             self.executeButton.setEnabled(
                 False
             )  # Désactiver le bouton si aucun dossier n'est sélectionné
 
     def execute(self):
         selected_folder = self.label.text().replace(SELECT_FOLDER_INPUT, "")
-        if selected_folder != "Aucun dossier sélectionné":
-            print(f"Exécution lancée avec le dossier: {selected_folder}")
+        if selected_folder != NO_FOLDER_SELECTED:
+            print(f"{EXECUTION_WITH_FOLDER} : {selected_folder}")
             extractor.extract_data(selected_folder)
         else:
-            print("Aucun dossier sélectionné pour l'exécution")
+            print(NO_FOLDER_SELECTED)
 
         self.close()
 
