@@ -1,157 +1,126 @@
-import os
 import sys
-import json
-import csv
-from typing import Dict, Set, List, Tuple, Union, NamedTuple
-import pypdfium2 as pdfium
+import os
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QFileDialog,
+    QLabel,
+)
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt
+
+import extractor
+
+TITLE = "FDS Extractor"
+SELECT_FOLDER_INPUT = "Dossier sélectionné:\n"
 
 
-class PdfData(NamedTuple):
-    code: str
-    has_picto: bool
+class App(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.title = TITLE
+        self.initUI()
 
+    def initUI(self):
+        self.setWindowTitle(self.title)
+        self.setGeometry(100, 100, 600, 150)  # Taille de la fenêtre
 
-MapCodes = Dict[str, Dict[str, Union[str, bool]]]
-PdfResult = Dict[str, Union[str, List[str], Set[str]]]
+        # Configuration de la disposition de la fenêtre
+        mainLayout = QVBoxLayout()
 
+        # Label pour afficher le dossier sélectionné
+        self.label = QLabel("Aucun dossier sélectionné", self)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setFont(QFont("Arial", 14))
+        mainLayout.addWidget(self.label)
 
-def extract_code_from_pdf_path(pdf_path: str) -> str:
-    """Extracts the code from a PDF file path.
+        # Layout horizontal pour les boutons
+        buttonLayout = QHBoxLayout()
 
-    Args:
-    - pdf_path (str): The path of the PDF file
+        # Bouton pour sélectionner un dossier
+        self.folderButton = QPushButton(
+            "Sélectionner un dossier contenant les fiches FDS", self
+        )
+        self.folderButton.setFont(QFont("Arial", 12))
+        self.folderButton.clicked.connect(self.selectFolder)
+        buttonLayout.addWidget(self.folderButton)
 
-    Returns:
-    - str: The extracted code (or "???" if not found)
-    """
-    DELIMITERS = ["_", "-", " "]
-    CUSTOM_DELIMITER = "___"
+        # Bouton pour lancer l'exécution
+        self.executeButton = QPushButton("Lancer l'exécution", self)
+        self.executeButton.setFont(QFont("Arial", 12))
+        self.executeButton.setEnabled(False)  # Désactiver le bouton au début
+        self.executeButton.clicked.connect(self.execute)
+        buttonLayout.addWidget(self.executeButton)
 
-    pdf_name = os.path.basename(pdf_path.replace("\\", "/"))
+        # Ajouter le layout des boutons au layout principal
+        mainLayout.addLayout(buttonLayout)
 
-    for delimiter in DELIMITERS:
-        pdf_name = pdf_name.replace(delimiter, CUSTOM_DELIMITER)
+        # Appliquer le layout principal à la fenêtre
+        self.setLayout(mainLayout)
 
-    return (
-        pdf_name.split(CUSTOM_DELIMITER)[0] if CUSTOM_DELIMITER in pdf_name else "???"
-    )
-
-
-def process_pdf_data(pdf_path: str, map_codes: MapCodes, pages: List[int]=[0]) -> PdfResult:
-    """Processes data from a PDF file based on provided map codes.
-
-    Args:
-    - pdf_path (str): The path of the PDF file
-    - map_codes (MapCodes): Mapping of keywords to category and pictogram presence
-    - pages (List[int], optional): List of page numbers to search for keywords (default: [0])
-
-    Returns:
-    - PdfResult: Dictionary containing 'pdf' path, 'code' of the PDF, and 'labels' found
-    """
-    code = extract_code_from_pdf_path(pdf_path)
-    result: PdfResult = {"pdf": pdf_path, "code": code, "labels": set()}
-
-    try:
-        pdf = pdfium.PdfDocument(pdf_path)
-    except Exception as e:
-        print(f"Error opening PDF '{pdf_path}': {e}")
-        return result
-
-    for id_page in pages:
-        page = pdf[id_page]
-        textpage = page.get_textpage()
-
-        for keyword, info in map_codes.items():
-            if not info.get("has_picto", False):
-                continue
-
-            searcher = textpage.search(keyword, match_case=True, match_whole_word=True)
-            first_occurrence = searcher.get_next()
-            if first_occurrence:
-                result["labels"].add(info["category"])
-
-    result["labels"] = list(result["labels"])
-
-    return result
-
-
-def get_all_pdf_paths(folder_path: str) -> List[str]:
-    """Recursively collects all PDF file paths within a folder.
-
-    Args:
-    - folder_path (str): The path of the folder to search
-
-    Returns:
-    - List[str]: List of paths to PDF files found
-    """
-    pdf_paths = []
-
-    for path, _, files in os.walk(folder_path):
-        for name in files:
-            if name.endswith(".pdf"):
-                pdf_paths.append(os.path.join(path, name))
-
-    return pdf_paths
-
-
-def load_map_codes(csv_path: str, delimiter: str = ",") -> MapCodes:
-    """Loads CLP codes from a CSV file into a dictionary.
-
-    Args:
-    - csv_path (str): The path of the CSV file containing CLP codes
-    - delimiter (str, optional): Delimiter used in the CSV file (default: ",")
-
-    Returns:
-    - MapCodes: Dictionary mapping keywords to category and pictogram presence
-    """
-    map_codes = {}
-
-    with open(csv_path, newline="") as csvfile:
-        reader = csv.reader(csvfile, delimiter=delimiter)
-        next(reader, None)  # skip headers
-        for row in reader:
-            map_codes[row[0].strip()] = {
-                "category": row[1].strip(),
-                "has_picto": row[2].strip() == "1",
+        # Appliquer un style à la fenêtre et aux widgets
+        self.setStyleSheet(
+            """
+            QWidget {
+                background-color: #f0f0f0;
             }
+            QLabel {
+                color: #333;
+            }
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 16px;
+                margin: 4px 2px;
+                border-radius: 12px;
+            }
+            QPushButton:disabled {
+                background-color: #9E9E9E;
+            }
+        """
+        )
 
-    return map_codes
+        # Afficher la fenêtre
+        self.show()
 
+    def selectFolder(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.ShowDirsOnly
+        folder = QFileDialog.getExistingDirectory(
+            self, "Sélectionner un dossier", options=options
+        )
+        if folder:
+            self.label.setText(f"{SELECT_FOLDER_INPUT}{folder}")
+            self.executeButton.setEnabled(
+                True
+            )  # Activer le bouton si un dossier est sélectionné
+        else:
+            self.label.setText("Aucun dossier sélectionné")
+            self.executeButton.setEnabled(
+                False
+            )  # Désactiver le bouton si aucun dossier n'est sélectionné
 
-def parse_command_line_args() -> Tuple[str, str]:
-    """Parses command line arguments and returns folder and CLP codes CSV file paths.
+    def execute(self):
+        selected_folder = self.label.text().replace(SELECT_FOLDER_INPUT, "")
+        if selected_folder != "Aucun dossier sélectionné":
+            print(f"Exécution lancée avec le dossier: {selected_folder}")
+            extractor.extract_data(selected_folder)
+        else:
+            print("Aucun dossier sélectionné pour l'exécution")
 
-    Returns:
-    - Tuple[str, str]: Folder path and CLP codes CSV file path
-    """
-    if len(sys.argv) < 3:
-        print("Usage: python main.py <folder_path> <clp_codes_path>")
-        sys.exit(1)
+        self.close()
 
-    folder_path = sys.argv[1]
-    clp_codes_path = sys.argv[2]
-
-    if not os.path.exists(folder_path):
-        print(f'Error: Folder "{folder_path}" not found')
-        sys.exit(1)
-
-    if not os.path.exists(clp_codes_path):
-        print(f'Error: File "{clp_codes_path}" not found')
-        sys.exit(1)
-
-    return folder_path, clp_codes_path
+        os.startfile(selected_folder)
 
 
 if __name__ == "__main__":
-    folder_path, clp_codes_path = parse_command_line_args()
-
-    pdf_results = []
-
-    pdf_paths = get_all_pdf_paths(folder_path)
-    map_codes = load_map_codes(clp_codes_path)
-
-    for pdf_path in pdf_paths:
-        result = process_pdf_data(pdf_path, map_codes)
-        pdf_results.append(result)
-
-    print(json.dumps(pdf_results, indent=2))
+    app = QApplication(sys.argv)
+    ex = App()
+    sys.exit(app.exec_())
