@@ -13,5 +13,9 @@ python3 src/fds-extractor.py
 ## Build the project
 
 ```sh
-python3 -m PyInstaller --add-data "path/to/pypdfium2_raw/pdfium.dll;pypdfium2_raw" --add-data "path/to/pypdfium2_raw/version.json;pypdfium2_raw" --add-data "path/to/pypdfium2/version.json;pypdfium2" --noconsole --onefile --windowed --icon=bottle.ico ./src/fds-extractor.py
+pip install nuitka
+```
+
+```sh
+python3 -m nuitka --mingw64 --standalone --windows-console-mode=disable --enable-plugin=pyqt5 --windows-icon-from-ico=bottle.ico --onefile ./src/fds-extractor.py
 ```
